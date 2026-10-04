@@ -53,6 +53,7 @@ describe("Serialization/Deserialization test", function() {
     piskel.getLayerAt(0).setOpacity(0);
     piskel.getLayerAt(1).setOpacity(0.3);
     piskel.getLayerAt(2).setOpacity(0.9);
+    piskel.getLayerAt(1).setParentLayer(piskel.getLayerAt(0));
 
     var frame = new pskl.model.Frame(1, 1);
     piskel.getLayers().forEach(function (layer) {
@@ -66,10 +67,34 @@ describe("Serialization/Deserialization test", function() {
       expect(p.getLayerAt(0).getOpacity()).toBe(0);
       expect(p.getLayerAt(1).getOpacity()).toBe(0.3);
       expect(p.getLayerAt(2).getOpacity()).toBe(0.9);
+      expect(p.getLayerAt(1).getParentLayer()).toBe(p.getLayerAt(0));
 
       // Check the serialization was successful
       expect(p.getLayerAt(0).getFrames().length).toBe(1);
       done();
     });
+  });
+
+  it("preserves parent layers in history snapshots", function(done) {
+    var descriptor = new pskl.model.piskel.Descriptor('piskelName', 'piskelDesc');
+    var piskel = new pskl.model.Piskel(1, 1, 1, descriptor);
+    var parent = new pskl.model.Layer('parent');
+    var child = new pskl.model.Layer('child');
+    parent.addFrame(new pskl.model.Frame(1, 1));
+    child.addFrame(new pskl.model.Frame(1, 1));
+    child.setParentLayer(parent);
+    piskel.addLayer(parent);
+    piskel.addLayer(child);
+
+    var snapshot = pskl.utils.serialization.arraybuffer.ArrayBufferSerializer.serialize(piskel);
+    pskl.utils.serialization.arraybuffer.ArrayBufferDeserializer.deserialize(
+      snapshot,
+      function (restoredPiskel) {
+        expect(restoredPiskel.getLayerAt(1).getParentLayer()).toBe(
+          restoredPiskel.getLayerAt(0)
+        );
+        done();
+      }
+    );
   });
 });

@@ -6,6 +6,7 @@
   var VISITED = 2;
 
   ns.LassoSelection = function (pixels, frame) {
+    ns.BaseSelection.call(this);
     // transform the selected pixels array to a Map to get a faster lookup
     this.pixelsMap = {};
     pixels.forEach(

@@ -2,6 +2,7 @@ import test, { expect, Page } from "@playwright/test";
 import {
   CMD_OR_CTRL,
   clickTool,
+  colorToInt,
   drawAtPixel,
   getPixelColor,
   openEditor,
@@ -322,5 +323,142 @@ test.describe('Selection tools', () => {
       '..........',
     ];
     expect(afterGrid.map(r => r.join(''))).toEqual(expectedAfter);
+  });
+
+  test('rectangle select: rotate cut content with the rotation handle', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, [
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "R", "B", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "R", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+    ]);
+
+    await clickTool(page, 'tool-rectangle-select');
+    await dragBetweenPixels(page, 2, 2, 4, 4);
+
+    const start = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 3, row: 0 });
+    const end = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 6, row: 3 });
+
+    await page.keyboard.down('Shift');
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    await page.keyboard.press('Enter');
+
+    expect(await getPixelColor(page, 4, 2)).toBe(colorToInt('#ff0000'));
+    expect(await getPixelColor(page, 4, 3)).toBe(colorToInt('#0000ff'));
+    expect(await getPixelColor(page, 3, 3)).toBe(colorToInt('#ff0000'));
+    expect(await getPixelColor(page, 2, 2)).toBe(TRANSPARENT);
+  });
+
+  test('rectangle select: rotating without copy does not capture pixel colors', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, [
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "R", "B", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "R", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+    ]);
+
+    await clickTool(page, 'tool-rectangle-select');
+    await dragBetweenPixels(page, 2, 2, 4, 4);
+    const start = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 3, row: 0 });
+    const end = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 6, row: 3 });
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+
+    const selectionState = await page.evaluate(() => {
+      const selection = window.pskl.app.selectionManager.currentSelection;
+      return {
+        hasPastedContent: selection.hasPastedContent,
+        colors: selection.pixels.map((pixel) => pixel.color)
+      };
+    });
+    expect(selectionState.hasPastedContent).toBe(false);
+    expect(selectionState.colors.every((color) => typeof color === 'undefined')).toBe(true);
+
+    await page.evaluate(() =>
+      window.pskl.app.selectionManager.paste({ type: 'CLIPBOARD_PASTE' }, null)
+    );
+    expect(await getPixelColor(page, 2, 2)).toBe(colorToInt('#ff0000'));
+    expect(await getPixelColor(page, 3, 2)).toBe(colorToInt('#0000ff'));
+    expect(await getPixelColor(page, 3, 3)).toBe(colorToInt('#ff0000'));
+  });
+
+  test('rectangle select: keeps cut colors through rotate, copy, move and paste', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, [
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "R", "B", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "R", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+      ["T", "T", "T", "T", "T", "T", "T", "T", "T", "T"],
+    ]);
+
+    await clickTool(page, 'tool-rectangle-select');
+    await dragBetweenPixels(page, 2, 2, 4, 4);
+    await page.keyboard.press(`${CMD_OR_CTRL}+x`);
+
+    const start = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 3, row: 0 });
+    const end = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 6, row: 3 });
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+
+    await dragBetweenPixels(page, 4, 2, 5, 3);
+
+    const movedHandlePosition = await page.evaluate(() => {
+      const tool = window.pskl.app.drawingController.currentToolBehavior;
+      const bounds = tool.selection.getBounds();
+      return {
+        handle: tool.getRotationHandle_(),
+        expected: {
+          col: Math.floor((bounds.left + bounds.right) / 2),
+          row: Math.max(0, bounds.top - 2)
+        }
+      };
+    });
+    expect(movedHandlePosition.handle).toEqual(movedHandlePosition.expected);
+
+    await page.keyboard.press(`${CMD_OR_CTRL}+c`);
+    await page.keyboard.press(`${CMD_OR_CTRL}+v`);
+    await page.keyboard.press('Enter');
+
+    await waitFor(async () =>
+      (await getPixelColor(page, 5, 3)) === colorToInt('#ff0000'),
+      { message: 'Moved rotated cut content should be pasted' }
+    );
+    expect(await getPixelColor(page, 5, 4)).toBe(colorToInt('#0000ff'));
+    expect(await getPixelColor(page, 4, 4)).toBe(colorToInt('#ff0000'));
+    expect(await getPixelColor(page, 2, 2)).toBe(TRANSPARENT);
   });
 });

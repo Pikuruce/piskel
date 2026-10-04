@@ -72,7 +72,7 @@
 
       // Layers
       for (var i = 0, layers = piskel.getLayers(); i < layers.length; i++) {
-        bytes += 5 * 2;
+        bytes += 6 * 2;
         bytes += layers[i].name.length * 2;
         bytes += framesData[i].length;
         if (bytes % 2 == 1) {
@@ -172,6 +172,7 @@
         var layerNameLength = layerName.length;
         var opacity = layer.getOpacity();
         var frameCount = frames.length;
+        var parentLayerIndex = layers.indexOf(layer.getParentLayer());
 
         dataUri = framesData[i].uri;
         dataUriLength = framesData[i].length;
@@ -182,19 +183,21 @@
         arr16[currentIndex + 2] = frameCount;
         arr16[currentIndex + 3] = ((dataUriLength & 0xffff0000) >> 16) >>> 0; // Upper 16
         arr16[currentIndex + 4] = (dataUriLength & 0x0000ffff) >>> 0; // Lower 16
+        arr16[currentIndex + 5] =
+          parentLayerIndex < 0 ? 0xffff : parentLayerIndex;
 
         // Name
         for (j = 0; j < layerNameLength; j++) {
-          arr16[currentIndex + 5 + j] = layerName.charCodeAt(j);
+          arr16[currentIndex + 6 + j] = layerName.charCodeAt(j);
         }
 
         // Data URI
         for (j = 0; j < dataUriLength; j++) {
-          arr8[(currentIndex + 5 + layerNameLength) * 2 + j] =
+          arr8[(currentIndex + 6 + layerNameLength) * 2 + j] =
             dataUri.charCodeAt(j);
         }
 
-        currentIndex += Math.ceil(5 + layerNameLength + dataUriLength / 2);
+        currentIndex += Math.ceil(6 + layerNameLength + dataUriLength / 2);
       }
 
       return buffer;

@@ -37,6 +37,19 @@
     this.saveWrap_("moveLayerDown", true);
     this.saveWrap_("removeCurrentLayer", true);
     this.saveWrap_("setLayerOpacityAt", true);
+    this.setLayerParentAt = function (index, parentIndex) {
+      var stateInfo = this.getStateInfo_();
+      var result = this.piskelController.setLayerParentAt(index, parentIndex);
+      if (result) {
+        this.raiseSaveStateEvent_(
+          this.piskelController.setLayerParentAt,
+          arguments,
+          stateInfo
+        );
+        $.publish(Events.PISKEL_RESET);
+      }
+      return result;
+    };
     this.saveWrap_("toggleFrameVisibilityAt", true);
 
     var shortcuts = pskl.service.keyboard.Shortcuts;

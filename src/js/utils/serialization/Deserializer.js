@@ -7,6 +7,7 @@
     this.callback_ = callback;
     this.piskel_ = null;
     this.layers_ = [];
+    this.layerParentIndices_ = [];
   };
 
   ns.Deserializer.deserialize = function (data, onSuccess, onError) {
@@ -52,6 +53,7 @@
     var layerData = JSON.parse(layerString);
     var layer = new pskl.model.Layer(layerData.name);
     layer.setOpacity(layerData.opacity);
+    this.layerParentIndices_[index] = layerData.parentLayerIndex;
 
     // Backward compatibility: if the layerData is not chunked but contains a single base64PNG,
     // create a fake chunk, expected to represent all frames side-by-side.
@@ -106,7 +108,11 @@
     this.layersToLoad_ = this.layersToLoad_ - 1;
     if (this.layersToLoad_ === 0) {
       this.layers_.forEach(
-        function (layer) {
+        function (layer, index) {
+          var parentIndex = this.layerParentIndices_[index];
+          if (parentIndex >= 0) {
+            layer.setParentLayer(this.layers_[parentIndex]);
+          }
           this.piskel_.addLayer(layer);
         }.bind(this)
       );

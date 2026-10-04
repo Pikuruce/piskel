@@ -83,27 +83,30 @@
         var dataUriLength =
           (dataUriLengthSecondHalf >>> 0) |
           ((dataUriLengthFirstHalf << 16) >>> 0);
+        var parentLayerIndex = arr16[currentIndex + 5];
 
         // Name
         var layerName = "";
         for (j = 0; j < layerNameLength; j++) {
-          layerName += String.fromCharCode(arr16[currentIndex + 5 + j]);
+          layerName += String.fromCharCode(arr16[currentIndex + 6 + j]);
         }
 
         // Data URI
         var dataUri = "";
         for (j = 0; j < dataUriLength; j++) {
           dataUri += String.fromCharCode(
-            arr8[(currentIndex + 5 + layerNameLength) * 2 + j]
+            arr8[(currentIndex + 6 + layerNameLength) * 2 + j]
           );
         }
         dataUri = "data:image/png;base64," + dataUri;
 
-        currentIndex += Math.ceil(5 + layerNameLength + dataUriLength / 2);
+        currentIndex += Math.ceil(6 + layerNameLength + dataUriLength / 2);
 
         layer.name = layerName;
         layer.opacity = opacity;
         layer.frameCount = frameCount;
+        layer.parentLayerIndex =
+          parentLayerIndex === 0xffff ? -1 : parentLayerIndex;
         layer.dataUri = dataUri;
         layers.push(layer);
       }
@@ -129,6 +132,13 @@
 
           loadedLayers++;
           if (loadedLayers == layerCount) {
+            layers.forEach(function (loadedLayer) {
+              if (loadedLayer.parentLayerIndex >= 0) {
+                loadedLayer.model.setParentLayer(
+                  layers[loadedLayer.parentLayerIndex].model
+                );
+              }
+            });
             cb(piskel);
           }
         };

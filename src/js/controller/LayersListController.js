@@ -24,6 +24,10 @@
     );
 
     this.rootEl.addEventListener("click", this.onClick_.bind(this));
+    this.layersListEl.addEventListener(
+      "change",
+      this.onParentLayerChange_.bind(this)
+    );
     this.toggleLayerPreviewEl.addEventListener(
       "click",
       this.toggleLayerPreview_.bind(this)
@@ -162,6 +166,24 @@
       opacity: layer.getOpacity()
     });
     var layerItem = pskl.utils.Template.createFromHTML(layerItemHtml);
+    var parentSelect = layerItem.querySelector(".layer-parent-select");
+    var noParentOption = document.createElement("option");
+    noParentOption.value = "";
+    noParentOption.textContent = "No parent";
+    parentSelect.appendChild(noParentOption);
+
+    var layers = this.piskelController.getLayers();
+    layers.forEach(function (candidate, candidateIndex) {
+      if (candidate !== layer) {
+        var option = document.createElement("option");
+        option.value = candidateIndex;
+        option.textContent = candidate.getName();
+        parentSelect.appendChild(option);
+      }
+    });
+    var parentIndex = layers.indexOf(layer.getParentLayer());
+    parentSelect.value = parentIndex < 0 ? "" : String(parentIndex);
+
     this.layersListEl.insertBefore(layerItem, this.layersListEl.firstChild);
     if (layerItem.offsetWidth < layerItem.scrollWidth) {
       var layerNameEl = layerItem.querySelector(".layer-name");
@@ -234,6 +256,21 @@
         this.onButtonClick_(containingButton, evt);
       }
     }
+  };
+
+  ns.LayersListController.prototype.onParentLayerChange_ = function (evt) {
+    var select = evt.target;
+    if (!select.classList.contains("layer-parent-select")) {
+      return;
+    }
+
+    var layerIndex = parseInt(
+      select.closest(".layer-item").dataset.layerIndex,
+      10
+    );
+    var parentIndex = select.value === "" ? null : parseInt(select.value, 10);
+    this.piskelController.setLayerParentAt(layerIndex, parentIndex);
+    this.renderLayerList_();
   };
 
   ns.LayersListController.prototype.startRenamingCurrentLayer_ = function () {

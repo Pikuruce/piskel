@@ -6,10 +6,12 @@
       var clonedFrames = layer.getFrames().map(function (frame) {
         return frame.clone();
       });
-      return pskl.model.Layer.fromFrames(
+      var clonedLayer = pskl.model.Layer.fromFrames(
         layer.getName() + " (clone)",
         clonedFrames
       );
+      clonedLayer.setParentLayer(layer.getParentLayer());
+      return clonedLayer;
     },
 
     mergeLayers: function (layerA, layerB) {

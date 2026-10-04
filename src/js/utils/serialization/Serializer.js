@@ -22,7 +22,10 @@
   ns.Serializer = {
     serialize: function (piskel) {
       var serializedLayers = piskel.getLayers().map(function (l) {
-        return pskl.utils.serialization.Serializer.serializeLayer(l);
+        return pskl.utils.serialization.Serializer.serializeLayer(
+          l,
+          piskel.getLayers()
+        );
       });
 
       return JSON.stringify({
@@ -39,11 +42,12 @@
       });
     },
 
-    serializeLayer: function (layer) {
+    serializeLayer: function (layer, layers) {
       var frames = layer.getFrames();
       var layerToSerialize = {
         name: layer.getName(),
         opacity: layer.getOpacity(),
+        parentLayerIndex: layers.indexOf(layer.getParentLayer()),
         frameCount: frames.length
       };
 

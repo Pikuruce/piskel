@@ -18,6 +18,8 @@
 
     this.selection = null;
     this.hasSelection = false;
+    this.rotationHandle_ = null;
+    this.rotationSourcePixels_ = null;
 
     this.tooltipDescriptors = [
       {
@@ -58,7 +60,10 @@
     // mode to create a selection.
     // If the initial click is on a previous selection, we go in 'moveSelection'
     // mode to allow to move the selection by drag'n dropping it.
-    if (!this.isInSelection(col, row)) {
+    if (this.isInRotationHandle(col, row)) {
+      this.mode = "rotateSelection";
+      this.startRotation_(col, row, frame, overlay, event);
+    } else if (!this.isInSelection(col, row)) {
       this.mode = "select";
       this.onSelectStart_(col, row, frame, overlay);
     } else {
@@ -86,6 +91,8 @@
       this.onSelect_(col, row, frame, overlay);
     } else if (this.mode == "moveSelection") {
       this.onSelectionMove_(col, row, frame, overlay);
+    } else if (this.mode == "rotateSelection") {
+      this.onSelectionRotate_(col, row, overlay);
     }
   };
 
@@ -103,6 +110,8 @@
       this.onSelectEnd_(col, row, frame, overlay);
     } else if (this.mode == "moveSelection") {
       this.onSelectionMoveEnd_(col, row, frame, overlay);
+    } else if (this.mode == "rotateSelection") {
+      this.onSelectionRotateEnd_(col, row, overlay);
     }
   };
 
@@ -118,7 +127,13 @@
     overlay,
     event
   ) {
-    if (overlay.containsPixel(col, row)) {
+    document.body.classList.remove("selection-rotate");
+    if (this.isInRotationHandle(col, row)) {
+      document.body.classList.add("selection-rotate");
+      document.body.classList.remove(this.secondaryToolId);
+      document.body.classList.remove(this.toolId);
+    } else if (overlay.containsPixel(col, row)) {
+      document.body.classList.remove("selection-rotate");
       if (this.isInSelection(col, row)) {
         // We're hovering the selection, show the move tool:
         document.body.classList.add(this.secondaryToolId);
@@ -147,6 +162,73 @@
     );
   };
 
+  ns.BaseSelect.prototype.isInRotationHandle = function (col, row) {
+    var handle = this.getRotationHandle_();
+    return !!handle && handle.col === col && handle.row === row;
+  };
+
+  ns.BaseSelect.prototype.getRotationHandle_ = function () {
+    if (this.rotationHandle_) {
+      return this.rotationHandle_;
+    }
+    if (!this.selection || !this.selection.pixels.length) {
+      return null;
+    }
+
+    var bounds = this.selection.getBounds();
+    return {
+      col: Math.floor((bounds.left + bounds.right) / 2),
+      row: Math.max(0, bounds.top - 2)
+    };
+  };
+
+  ns.BaseSelect.prototype.startRotation_ = function (
+    col,
+    row,
+    frame,
+    overlay,
+    event
+  ) {
+    if (event.shiftKey && !this.isMovingContent_) {
+      this.isMovingContent_ = true;
+      $.publish(Events.CLIPBOARD_CUT);
+    }
+    this.rotationSourcePixels_ = JSON.parse(
+      JSON.stringify(this.selection.pixels)
+    );
+    var bounds = this.selection.getBounds(this.rotationSourcePixels_);
+    this.rotationPivot_ = {
+      x: (bounds.left + bounds.right + 1) / 2,
+      y: (bounds.top + bounds.bottom + 1) / 2
+    };
+    this.rotationStartAngle_ = Math.atan2(
+      row + 0.5 - this.rotationPivot_.y,
+      col + 0.5 - this.rotationPivot_.x
+    );
+    this.rotationHandle_ = this.getRotationHandle_();
+    this.drawSelectionOnOverlay_(overlay);
+  };
+
+  ns.BaseSelect.prototype.onSelectionRotate_ = function (col, row, overlay) {
+    var angle =
+      Math.atan2(
+        row + 0.5 - this.rotationPivot_.y,
+        col + 0.5 - this.rotationPivot_.x
+      ) - this.rotationStartAngle_;
+    this.selection.rotateFrom(this.rotationSourcePixels_, angle);
+    this.rotationHandle_ = { col: col, row: row };
+    overlay.clear();
+    this.drawSelectionOnOverlay_(overlay);
+  };
+
+  ns.BaseSelect.prototype.onSelectionRotateEnd_ = function (col, row, overlay) {
+    this.onSelectionRotate_(col, row, overlay);
+    this.rotationSourcePixels_ = null;
+    this.rotationHandle_ = null;
+    overlay.clear();
+    this.drawSelectionOnOverlay_(overlay);
+  };
+
   /**
    * Protected method, should be called when the selection is committed,
    * typically by clicking outside of the selected area.
@@ -168,6 +250,10 @@
     var overlay = pskl.app.drawingController.overlayFrame;
     overlay.clear();
     this.hasSelection = false;
+    this.rotationHandle_ = null;
+    this.rotationSourcePixels_ = null;
+    this.rotationPivot_ = null;
+    document.body.classList.remove("selection-rotate");
   };
 
   /**
@@ -185,6 +271,29 @@
 
       overlay.setPixel(pixels[i].col, pixels[i].row, color);
     }
+
+    var handle = this.getRotationHandle_();
+    if (handle) {
+      var pivot = this.rotationPivot_ || this.getSelectionPivot_();
+      var line = pskl.PixelUtils.getLinePixels(
+        Math.round(pivot.x - 0.5),
+        handle.col,
+        Math.round(pivot.y - 0.5),
+        handle.row
+      );
+      line.forEach(function (pixel) {
+        overlay.setPixel(pixel.col, pixel.row, "rgba(255, 215, 0, 0.8)");
+      });
+      overlay.setPixel(handle.col, handle.row, "#ffd700");
+    }
+  };
+
+  ns.BaseSelect.prototype.getSelectionPivot_ = function () {
+    var bounds = this.selection.getBounds();
+    return {
+      x: (bounds.left + bounds.right + 1) / 2,
+      y: (bounds.top + bounds.bottom + 1) / 2
+    };
   };
 
   ns.BaseSelect.prototype.getTransparentVariant_ =
@@ -229,6 +338,8 @@
     var deltaRow = row - this.lastMoveRow;
 
     this.selection.move(deltaCol, deltaRow);
+    this.rotationPivot_ = null;
+    this.rotationHandle_ = null;
 
     overlay.clear();
     this.drawSelectionOnOverlay_(overlay);

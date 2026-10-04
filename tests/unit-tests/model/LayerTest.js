@@ -9,6 +9,19 @@ describe("Layer model test", function() {
     expect(layer.getOpacity()).toBe(1);
     expect(layer.getFrames().length).toBe(0);
     expect(layer.getName()).toBe('layerName');
+    expect(layer.getParentLayer()).toBeNull();
+  });
+
+  it("supports parent layers without allowing cycles", function() {
+    var parent = new pskl.model.Layer('parent');
+    var child = new pskl.model.Layer('child');
+    var grandchild = new pskl.model.Layer('grandchild');
+
+    expect(child.setParentLayer(parent)).toBe(true);
+    expect(grandchild.setParentLayer(child)).toBe(true);
+    expect(parent.setParentLayer(grandchild)).toBe(false);
+    expect(child.setParentLayer(child)).toBe(false);
+    expect(grandchild.getParentLayer()).toBe(child);
   });
 
   it("can set opacity", function() {

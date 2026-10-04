@@ -20,6 +20,7 @@
     // Stroke's first point coordinates (set in applyToolAt)
     this.startCol = null;
     this.startRow = null;
+    this.currentFrameReferences_ = [];
   };
 
   /**
@@ -36,14 +37,24 @@
   ns.Move.prototype.applyToolAt = function (col, row, frame, overlay, event) {
     this.startCol = col;
     this.startRow = row;
-    this.currentFrame = frame;
-    this.currentFrameClone = frame.clone();
+    var ctrlKey = pskl.utils.UserAgent.isMac ? event.metaKey : event.ctrlKey;
+    var currentFrameIndex = pskl.app.piskelController.getCurrentFrameIndex();
+    this.currentFrameReferences_ = pskl.tools.ToolsHelper.getTargetLayers(
+      ctrlKey
+    ).map(function (layer) {
+      var targetFrame = layer.getFrameAt(currentFrameIndex);
+      return { frame: targetFrame, reference: targetFrame.clone() };
+    });
   };
 
   ns.Move.prototype.moveToolAt = function (col, row, frame, overlay, event) {
     var colDiff = col - this.startCol;
     var rowDiff = row - this.startRow;
-    this.shiftFrame(colDiff, rowDiff, frame, this.currentFrameClone, event);
+    this.currentFrameReferences_.forEach(
+      function (entry) {
+        this.shiftFrame(colDiff, rowDiff, entry.frame, entry.reference, event);
+      }.bind(this)
+    );
   };
 
   ns.Move.prototype.shiftFrame = function (
@@ -82,12 +93,18 @@
     var rowDiff = row - this.startRow;
 
     var ctrlKey = pskl.utils.UserAgent.isMac ? event.metaKey : event.ctrlKey;
-    pskl.tools.ToolsHelper.getTargetFrames(ctrlKey, event.shiftKey).forEach(
+    var targetLayers = pskl.tools.ToolsHelper.getTargetLayers(ctrlKey);
+    var currentFrameIndex = pskl.app.piskelController.getCurrentFrameIndex();
+    pskl.tools.ToolsHelper.getFramesForLayers(
+      targetLayers,
+      event.shiftKey,
+      currentFrameIndex
+    ).forEach(
       function (f) {
-        // for the current frame, the backup clone should be reused as reference
-        // the current frame has been modified by the user action already
-        var reference =
-          this.currentFrame == f ? this.currentFrameClone : f.clone();
+        var savedFrame = this.currentFrameReferences_.find(function (entry) {
+          return entry.frame === f;
+        });
+        var reference = savedFrame ? savedFrame.reference : f.clone();
         this.shiftFrame(colDiff, rowDiff, f, reference, event);
       }.bind(this)
     );
@@ -107,9 +124,12 @@
       altKey: replayData.altKey,
       ctrlKey: replayData.ctrlKey
     };
-    pskl.tools.ToolsHelper.getTargetFrames(
-      event.ctrlKey,
-      event.shiftKey
+    var targetLayers = pskl.tools.ToolsHelper.getTargetLayers(event.ctrlKey);
+    var currentFrameIndex = pskl.app.piskelController.getCurrentFrameIndex();
+    pskl.tools.ToolsHelper.getFramesForLayers(
+      targetLayers,
+      event.shiftKey,
+      currentFrameIndex
     ).forEach(
       function (frame) {
         this.shiftFrame(

@@ -302,6 +302,22 @@
     }
   };
 
+  ns.PiskelController.prototype.setLayerParentAt = function (
+    index,
+    parentIndex
+  ) {
+    var layer = this.getLayerByIndex(index);
+    var parentLayer =
+      parentIndex === null ? null : this.getLayerAt(parentIndex);
+    if (!layer || (parentIndex !== null && !parentLayer)) {
+      return false;
+    }
+    if (layer.getParentLayer() === parentLayer) {
+      return false;
+    }
+    return layer.setParentLayer(parentLayer);
+  };
+
   ns.PiskelController.prototype.mergeDownLayerAt = function (index) {
     var layer = this.getLayerByIndex(index);
     var downLayer = this.getLayerByIndex(index - 1);
@@ -375,6 +391,11 @@
     }
 
     var layer = this.getLayerAt(index);
+    this.getLayers().forEach(function (candidate) {
+      if (candidate.getParentLayer() === layer) {
+        candidate.setParentLayer(null);
+      }
+    });
     this.piskel.removeLayer(layer);
 
     // Update the selected layer if needed.

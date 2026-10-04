@@ -39,6 +39,10 @@ const configs = {
       { platform: 'linux', arch: 'x64' },
     ],
     outDir: DESKTOP_DIR,
+    app: {
+      name: 'Piskel',
+      icon: './misc/desktop/nw.ico',
+    },
   },
   macos: {
     version: NW_VERSION,

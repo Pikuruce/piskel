@@ -261,4 +261,24 @@ test.describe('Move tool', () => {
     expect(grid1[4][6]).toBe('X');
     expect(grid1[4][2]).toBe('.');
   });
+
+  test('move tool: moves child layers with their parent', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, emptyTestGrid());
+
+    await clickTool(page, 'tool-pen');
+    await drawAtPixel(page, 2, 2);
+    await page.locator('[data-test-id="layer-add-button"]').click();
+    await drawAtPixel(page, 2, 4);
+
+    await page.locator('[data-layer-index="1"] .layer-parent-select').selectOption('0');
+    await page.locator('[data-layer-index="0"] .layer-name').click();
+    await clickTool(page, 'tool-move');
+    await dragBetweenPixels(page, 2, 3, 5, 3);
+
+    expect(await getPixelColor(page, 5, 2, 0, 0)).toBe(colorToInt('#000000'));
+    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(0);
+    expect(await getPixelColor(page, 5, 4, 1, 0)).toBe(colorToInt('#000000'));
+    expect(await getPixelColor(page, 2, 4, 1, 0)).toBe(0);
+  });
 });

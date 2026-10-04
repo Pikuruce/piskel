@@ -8,6 +8,7 @@
       this.name = name;
       this.frames = [];
       this.opacity = 1;
+      this.parentLayer = null;
     }
   };
 
@@ -48,6 +49,29 @@
 
   ns.Layer.prototype.isTransparent = function () {
     return this.opacity < 1;
+  };
+
+  ns.Layer.prototype.getParentLayer = function () {
+    return this.parentLayer;
+  };
+
+  ns.Layer.prototype.setParentLayer = function (parentLayer) {
+    if (parentLayer === this) {
+      return false;
+    }
+
+    for (
+      var ancestor = parentLayer;
+      ancestor;
+      ancestor = ancestor.getParentLayer()
+    ) {
+      if (ancestor === this) {
+        return false;
+      }
+    }
+
+    this.parentLayer = parentLayer || null;
+    return true;
   };
 
   ns.Layer.prototype.getFrames = function () {

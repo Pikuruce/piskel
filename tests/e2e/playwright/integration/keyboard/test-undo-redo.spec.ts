@@ -106,4 +106,65 @@ test.describe('Undo and Redo', () => {
     await undo(page);
     await waitFor(async () => (await getCurrentPiskelLayerCount(page)) === 1);
   });
+
+  test('should undo layer movement before undoing its parent assignment', async ({ page }) => {
+    await openEditor(page);
+    await getAddLayerButton(page).click();
+
+    await clickTool(page, 'tool-pen');
+    await setPrimaryColor(page, '#FF0000');
+    await drawAtPixel(page, 2, 2);
+    await page.locator('[data-layer-index="0"] .layer-name').click();
+    await setPrimaryColor(page, '#00FF00');
+    await drawAtPixel(page, 2, 4);
+
+    await page.locator('[data-layer-index="0"] .layer-parent-select').selectOption('1');
+    await page.locator('[data-layer-index="1"] .layer-name').click();
+    await clickTool(page, 'tool-move');
+
+    const start = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 2, row: 3 });
+    const end = await page.evaluate(({ col, row }) =>
+      window.pskl.app.drawingController.getScreenCoordinates(col, row), { col: 5, row: 3 });
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 5 });
+    await page.mouse.up();
+
+    expect(await getPixelColor(page, 5, 2, 1)).toBe(colorToInt('#FF0000'));
+    expect(await getPixelColor(page, 5, 4, 0)).toBe(colorToInt('#00FF00'));
+
+    await undo(page);
+    await waitFor(async () =>
+      (await getPixelColor(page, 2, 2, 1)) === colorToInt('#FF0000') &&
+      (await getPixelColor(page, 2, 4, 0)) === colorToInt('#00FF00')
+    );
+    expect(await page.evaluate(() =>
+      window.pskl.app.piskelController.getLayerAt(0).getParentLayer() ===
+      window.pskl.app.piskelController.getLayerAt(1)
+    )).toBe(true);
+
+    await wait(100);
+    await undo(page);
+    await waitFor(async () =>
+      await page.evaluate(() =>
+        window.pskl.app.piskelController.getLayerAt(0).getParentLayer() === null
+      )
+    );
+
+    await wait(100);
+    await redo(page);
+    await waitFor(async () =>
+      await page.evaluate(() =>
+        window.pskl.app.piskelController.getLayerAt(0).getParentLayer() ===
+        window.pskl.app.piskelController.getLayerAt(1)
+      )
+    );
+    await wait(100);
+    await redo(page);
+    await waitFor(async () =>
+      (await getPixelColor(page, 5, 2, 1)) === colorToInt('#FF0000') &&
+      (await getPixelColor(page, 5, 4, 0)) === colorToInt('#00FF00')
+    );
+  });
 });

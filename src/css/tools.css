@@ -95,6 +95,10 @@
   cursor: crosshair;
 }
 
+.selection-rotate .drawing-canvas-container:hover {
+  cursor: alias;
+}
+
 .tool-shape-select .drawing-canvas-container:hover {
   cursor:
     url(../img/cursors/wand.png) 10 5,

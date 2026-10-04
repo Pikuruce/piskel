@@ -98,9 +98,11 @@
 
   ns.SelectionManager.prototype.copy = function (event, domEvent) {
     if (this.currentSelection && this.piskelController.getCurrentFrame()) {
-      this.currentSelection.fillSelectionFromFrame(
-        this.piskelController.getCurrentFrame()
-      );
+      if (!this.currentSelection.hasTransformedContent) {
+        this.currentSelection.fillSelectionFromFrame(
+          this.piskelController.getCurrentFrame()
+        );
+      }
       if (domEvent) {
         domEvent.clipboardData.setData(
           "text/plain",
