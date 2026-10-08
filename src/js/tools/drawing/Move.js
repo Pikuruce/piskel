@@ -104,13 +104,16 @@
     }
     return {
       col: Math.floor(frame.getWidth() / 2),
-      row: Math.max(0, Math.floor(frame.getHeight() / 2) - 2)
+      row: Math.max(
+        0,
+        Math.floor(frame.getHeight() / 2) - this.getRotationHandleRadius_() - 2
+      )
     };
   };
 
   ns.Move.prototype.isInRotationHandle_ = function (col, row, frame) {
     var handle = this.getRotationHandle_(frame);
-    return handle.col === col && handle.row === row;
+    return this.isWithinRotationHandle_(col, row, handle);
   };
 
   ns.Move.prototype.drawRotationHandle_ = function (overlay, frame) {
@@ -125,7 +128,7 @@
     ).forEach(function (pixel) {
       overlay.setPixel(pixel.col, pixel.row, "rgba(255, 215, 0, 0.8)");
     });
-    overlay.setPixel(handle.col, handle.row, "#ffd700");
+    this.drawRotationHandlePixels_(overlay, handle);
   };
 
   ns.Move.prototype.startRotation_ = function (

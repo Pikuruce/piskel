@@ -164,7 +164,7 @@
 
   ns.BaseSelect.prototype.isInRotationHandle = function (col, row) {
     var handle = this.getRotationHandle_();
-    return !!handle && handle.col === col && handle.row === row;
+    return !!handle && this.isWithinRotationHandle_(col, row, handle);
   };
 
   ns.BaseSelect.prototype.getRotationHandle_ = function () {
@@ -176,9 +176,10 @@
     }
 
     var bounds = this.selection.getBounds();
+    var handleRadius = this.getRotationHandleRadius_();
     return {
       col: Math.floor((bounds.left + bounds.right) / 2),
-      row: Math.max(0, bounds.top - 2)
+      row: Math.max(0, bounds.top - handleRadius - 2)
     };
   };
 
@@ -284,7 +285,7 @@
       line.forEach(function (pixel) {
         overlay.setPixel(pixel.col, pixel.row, "rgba(255, 215, 0, 0.8)");
       });
-      overlay.setPixel(handle.col, handle.row, "#ffd700");
+      this.drawRotationHandlePixels_(overlay, handle);
     }
   };
 

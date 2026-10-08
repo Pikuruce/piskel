@@ -318,4 +318,35 @@ test.describe('Move tool', () => {
       (await getPixelColor(page, 5, 2, 1, 0)) === colorToInt('#000000')
     );
   });
+
+  test('rotation handles keep a usable hit area at low zoom', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, emptyTestGrid(20));
+    await clickTool(page, 'tool-move');
+
+    const moveHit = await page.evaluate(() => {
+      const drawingController = window.pskl.app.drawingController;
+      drawingController.renderer.setZoom(1);
+      const tool = drawingController.currentToolBehavior;
+      const frame = window.pskl.app.piskelController.getCurrentFrame();
+      const handle = tool.getRotationHandle_(frame);
+      return tool.isInRotationHandle_(handle.col + 5, handle.row, frame);
+    });
+    expect(moveHit).toBe(true);
+
+    await clickTool(page, 'tool-rectangle-select');
+    const selectionHit = await page.evaluate(() => {
+      const drawingController = window.pskl.app.drawingController;
+      const tool = drawingController.currentToolBehavior;
+      tool.selection = new window.pskl.selection.RectangularSelection(
+        5,
+        5,
+        5,
+        5
+      );
+      const handle = tool.getRotationHandle_();
+      return tool.isInRotationHandle(handle.col + 5, handle.row);
+    });
+    expect(selectionHit).toBe(true);
+  });
 });

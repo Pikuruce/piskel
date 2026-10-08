@@ -35,6 +35,29 @@
     return false;
   };
 
+  ns.BaseTool.prototype.getRotationHandleRadius_ = function () {
+    var zoom = pskl.app.drawingController.renderer.getZoom();
+    return Math.max(0, Math.ceil(7 / zoom) - 1);
+  };
+
+  ns.BaseTool.prototype.isWithinRotationHandle_ = function (col, row, handle) {
+    var radius = this.getRotationHandleRadius_();
+    var deltaCol = col - handle.col;
+    var deltaRow = row - handle.row;
+    return deltaCol * deltaCol + deltaRow * deltaRow <= radius * radius;
+  };
+
+  ns.BaseTool.prototype.drawRotationHandlePixels_ = function (overlay, handle) {
+    var radius = this.getRotationHandleRadius_();
+    for (var col = -radius; col <= radius; col++) {
+      for (var row = -radius; row <= radius; row++) {
+        if (col * col + row * row <= radius * radius) {
+          overlay.setPixel(handle.col + col, handle.row + row, "#ffd700");
+        }
+      }
+    }
+  };
+
   ns.BaseTool.prototype.getToolColor = function () {
     if (pskl.app.mouseStateService.isRightButtonPressed()) {
       return pskl.app.selectedColorsService.getSecondaryColor();
