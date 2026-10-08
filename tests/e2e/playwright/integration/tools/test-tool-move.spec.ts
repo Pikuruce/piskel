@@ -8,6 +8,10 @@ import {
   openEditor,
   readPixelGrid,
   setPiskelFromGrid,
+  undo,
+  redo,
+  waitFor,
+  wait,
 } from "../../testutils";
 
 /** Drag from sprite pixel (x1,y1) to (x2,y2) */
@@ -280,5 +284,38 @@ test.describe('Move tool', () => {
     expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(0);
     expect(await getPixelColor(page, 5, 4, 1, 0)).toBe(colorToInt('#000000'));
     expect(await getPixelColor(page, 2, 4, 1, 0)).toBe(0);
+  });
+
+  test('move tool: rotates child layers around the canvas center', async ({ page }) => {
+    await openEditor(page);
+    await setPiskelFromGrid(page, emptyTestGrid());
+
+    await clickTool(page, 'tool-pen');
+    await drawAtPixel(page, 2, 2);
+    await page.locator('[data-test-id="layer-add-button"]').click();
+    await drawAtPixel(page, 2, 4);
+    await page.locator('[data-layer-index="1"] .layer-parent-select').selectOption('0');
+    await page.locator('[data-layer-index="0"] .layer-name').click();
+    await clickTool(page, 'tool-move');
+
+    await dragBetweenPixels(page, 5, 3, 7, 5);
+
+    expect(await getPixelColor(page, 7, 2, 0, 0)).toBe(colorToInt('#000000'));
+    expect(await getPixelColor(page, 2, 2, 0, 0)).toBe(0);
+    expect(await getPixelColor(page, 5, 2, 1, 0)).toBe(colorToInt('#000000'));
+    expect(await getPixelColor(page, 2, 4, 1, 0)).toBe(0);
+
+    await undo(page);
+    await waitFor(async () =>
+      (await getPixelColor(page, 2, 2, 0, 0)) === colorToInt('#000000') &&
+      (await getPixelColor(page, 2, 4, 1, 0)) === colorToInt('#000000')
+    );
+
+    await wait(100);
+    await redo(page);
+    await waitFor(async () =>
+      (await getPixelColor(page, 7, 2, 0, 0)) === colorToInt('#000000') &&
+      (await getPixelColor(page, 5, 2, 1, 0)) === colorToInt('#000000')
+    );
   });
 });
